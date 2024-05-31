@@ -1,55 +1,33 @@
+import time
+from picamera2 import Picamera2
 import cv2
-from libcamera import libcamera, libcamera_core
-from libcamera import libcamera_core as core
-from libcamera import controls
 
-# Function to convert the captured frame to an OpenCV format
-def convert_frame_to_opencv(frame):
-    # The frame is in YUV420 format, convert it to BGR for OpenCV
-    image = cv2.cvtColor(frame, cv2.COLOR_YUV2BGR_I420)
-    return image
+# Initialize the Picamera2 object
+picam2 = Picamera2()
 
-# Initialize libcamera
-camera_manager = libcamera.CameraManager()
-camera = camera_manager.get_camera(0)
-
-# Configure the camera
-config = camera.create_still_configuration()
-camera.configure(config)
+# Configure the camera for video capture
+video_config = picam2.create_video_configuration()
+picam2.configure(video_config)
 
 # Start the camera
-camera.start()
+picam2.start()
 
-# Create a request and capture a frame
-request = camera.create_request()
-stream = config.at(0).stream()
-buffer = camera.acquire_buffer(stream)
-request.add_buffer(stream, buffer)
-camera.queue_request(request)
+# Create a window to display the video
+cv2.namedWindow("Live Video Stream", cv2.WINDOW_AUTOSIZE)
 
-# Allow the camera to warm up
-import time
-time.sleep(2)
+try:
+    while True:
+        # Capture a frame from the camera
+        frame = picam2.capture_array()
 
-# Capture frames continuously
-while True:
-    # Capture a frame
-    camera.capture(request)
-    frame = buffer.map()
+        # Display the frame in the window
+        cv2.imshow("Live Video Stream", frame)
 
-    # Convert the frame to OpenCV format
-    image = convert_frame_to_opencv(frame)
+        # Check if the user pressed the 'q' key to exit
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
-    # Resize the image to 224x224
-    resized_image = cv2.resize(image, (224, 224))
-
-    # Display the resized image
-    cv2.imshow("Resized Frame", resized_image)
-
-    # Break the loop if 'q' key is pressed
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# Release resources
-camera.stop()
-cv2.destroyAllWindows()
+finally:
+    # Clean up and release resources
+    cv2.destroyAllWindows()
+    picam2.stop()
